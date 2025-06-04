@@ -5,33 +5,32 @@ from io import BytesIO
 def calculate_float_shares(df):
     df.columns = [col.strip() for col in df.columns]
     df['Sermaye_TL'] = df['Sermaye (mn TL)'] * 1_000_000
-    df['Dolasimdaki_Lot'] = (df['Sermaye_TL'] / df['Kapanış (TL)']) * (df['Halka Açıklık Oranı (%)'] / 100)
+    df['Dolasimdaki_Lot'] = df['Sermaye_TL'] * (df['Halka Açıklık Oranı (%)'] / 100)
     df['Dolasimdaki_Lot'] = df['Dolasimdaki_Lot'].round().astype(int)
-    return df[['Kod', 'Hisse Adı', 'Dolasimdaki_Lot']]
+    output_df = df[['Hisse Adı', 'Dolasimdaki_Lot']]
+    return output_df
 
-def to_excel(df):
+st.title("Dolaşımdaki Lot Sayısı Hesaplayıcı (Adet)")
+
+uploaded_file = st.file_uploader("Excel dosyasını yükleyin", type=["xlsx"])
+
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file)
+    result_df = calculate_float_shares(df)
+
+    st.subheader("Hesaplanan Dolaşımdaki Lot Sayıları (adet)")
+    st.dataframe(result_df)
+
+    # Excel dosyasını bellek içine yaz
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Dolaşımdaki Lotlar')
-    processed_data = output.getvalue()
-    return processed_data
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        result_df.to_excel(writer, index=False)
+    output.seek(0)
 
-# Streamlit Arayüzü
-st.title("Dolaşımdaki Lot Hesaplama")
-
-uploaded_file = st.file_uploader("Excel dosyasını yükle (temelozet.xlsx)", type=["xlsx"])
-
-if uploaded_file:
-    df_input = pd.read_excel(uploaded_file)
-    df_result = calculate_float_shares(df_input)
-
-    st.dataframe(df_result)
-
-    excel_data = to_excel(df_result)
-
+    # İndirme butonu
     st.download_button(
-        label="📥 Excel olarak indir",
-        data=excel_data,
-        file_name="dolasimdaki_lotlar.xlsx",
+        label="📥 Excel dosyasını indir",
+        data=output,
+        file_name="dolasimdaki_lotlar_adet.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
